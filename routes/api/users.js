@@ -5,6 +5,10 @@ const jwt = require("jsonwebtoken");
 const keys = require("../../config/keys");
 const passport = require("passport");
 
+// Load Input Validation
+const validateRegisterInput = require("../../validation/register");
+const validateLoginInput = require("../../validation/login");
+
 //Load user Model
 const User = require("../../models/User");
 
@@ -18,9 +22,17 @@ router.get("/", (req, res) => res.json({ msg: "users Works" }));
 // @access Public
 
 router.post("/register", (req, res) => {
+  const { errors, isValid } = validateRegisterInput(req.body);
+
+  // Check Validation
+  if (!isValid) {
+    return res.status(400).json(errors);
+  }
+
   User.findOne({ username: req.body.username }).then(user => {
     if (user) {
-      return res.status(400).json({ username: "Username already taken" });
+      errors.username = "Username already exists";
+      return res.status(400).json(errors);
     } else {
       const newUser = new User({
         username: req.body.username,
@@ -45,12 +57,20 @@ router.post("/register", (req, res) => {
 // @desc login User
 // @access Public
 router.post("/login", (req, res) => {
+  const { errors, isValid } = validateLoginInput(req.body);
+
+  // Check Validation
+  if (!isValid) {
+    return res.status(400).json(errors);
+  }
+
   const username = req.body.username;
   const password = req.body.password;
 
   User.findOne({ username }).then(user => {
     if (!user) {
-      return res.status(404).json({ username: "User not Found" });
+      errors.username = "User not found";
+      return res.status(404).json(errors);
     }
 
     bcrypt.compare(password, user.password).then(isMatch => {
@@ -66,7 +86,8 @@ router.post("/login", (req, res) => {
           });
         });
       } else {
-        return res.status(400).json({ password: "password incorrect" });
+        errors.password = "Password incorrect";
+        return res.status(400).json(errors);
       }
     });
   });
