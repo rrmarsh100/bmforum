@@ -3,36 +3,37 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const keys = require("../../config/keys");
+const passport = require("passport");
 
-//Load Auth Model
-const Auth = require("../../models/Auth");
+//Load user Model
+const User = require("../../models/User");
 
-// @route GET api/auth
-// @desc Tests auth route
+// @route GET api/user
+// @desc Tests user route
 // @access Public
-router.get("/", (req, res) => res.json({ msg: "auth Works" }));
+router.get("/", (req, res) => res.json({ msg: "users Works" }));
 
-// @route GET api/auth/register
+// @route GET api/user/register
 // @desc Register User
 // @access Public
 
 router.post("/register", (req, res) => {
-  Auth.findOne({ username: req.body.username }).then(auth => {
-    if (auth) {
+  User.findOne({ username: req.body.username }).then(user => {
+    if (user) {
       return res.status(400).json({ username: "Username already taken" });
     } else {
-      const newAuth = new Auth({
+      const newUser = new User({
         username: req.body.username,
         password: req.body.password
       });
 
       bcrypt.genSalt(5, (err, salt) => {
-        bcrypt.hash(newAuth.password, salt, (err, hash) => {
+        bcrypt.hash(newUser.password, salt, (err, hash) => {
           if (err) throw err;
-          newAuth.password = hash;
-          newAuth
+          newUser.password = hash;
+          newUser
             .save()
-            .then(auth => res.json(auth))
+            .then(user => res.json(user))
             .catch(err => console.log(err));
         });
       });
@@ -40,23 +41,23 @@ router.post("/register", (req, res) => {
   });
 });
 
-// @route GET api/auth/login
+// @route GET api/user/login
 // @desc login User
 // @access Public
 router.post("/login", (req, res) => {
   const username = req.body.username;
   const password = req.body.password;
 
-  Auth.findOne({ username }).then(auth => {
-    if (!auth) {
+  User.findOne({ username }).then(user => {
+    if (!user) {
       return res.status(404).json({ username: "User not Found" });
     }
 
-    bcrypt.compare(password, auth.password).then(isMatch => {
+    bcrypt.compare(password, user.password).then(isMatch => {
       if (isMatch) {
         // User Matched !
 
-        const payload = { id: auth.id, username: auth.username };
+        const payload = { id: user.id, username: user.username };
 
         jwt.sign(payload, keys.secretOrKey, (err, token) => {
           res.json({
@@ -70,5 +71,20 @@ router.post("/login", (req, res) => {
     });
   });
 });
+
+// @route GET api/user/current
+// @desc current User
+// @access private
+
+router.get(
+  "/current",
+  passport.authenticate("jwt", { session: false }),
+  (req, res) => {
+    res.json({
+      id: req.user.id,
+      username: req.user.username
+    });
+  }
+);
 
 module.exports = router;
