@@ -30,4 +30,39 @@ router.get(
   }
 );
 
+router.post(
+  "/",
+  passport.authenticate("jwt", { session: false }),
+  (req, res) => {
+    // Get fields
+    const profileFields = {};
+    profileFields.user = req.user.id;
+    if (req.body.hook) profileFields.hook = req.body.hook;
+    if (req.body.image) profileFields.image = req.body.image;
+    Profile.findOne({ user: req.user.id }).then(profile => {
+      if (profile) {
+        // Update
+        Profile.findOneAndUpdate(
+          { user: req.user.id },
+          { $set: profileFields },
+          { new: true }
+        ).then(profile => res.json(profile));
+      } else {
+        // Create
+
+        // Check if handle exists
+        Profile.findOne({ handle: profileFields.handle }).then(profile => {
+          if (profile) {
+            errors.handle = "That handle already exists";
+            res.status(400).json(errors);
+          }
+
+          // Save Profile
+          new Profile(profileFields).save().then(profile => res.json(profile));
+        });
+      }
+    });
+  }
+);
+
 module.exports = router;
